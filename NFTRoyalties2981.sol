@@ -15,6 +15,11 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
 
     using Strings for uint256;
 
+//Events
+    event Deposit(address indexed sender, uint amount, uint balance);
+    //MintNFT
+    //Withdraw
+
 // Constants
     string public constant BASE_EXTENSION = ".json";
     uint public constant MAX_TOTAL_SUPPLY = 111;
@@ -70,6 +75,10 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
 
         (bool sent, ) = _to.call{value: amount}("");
         require(sent, "Failed to send Ether");
+    }
+
+    receive() external payable {
+        emit Deposit(msg.sender, msg.value, address(this).balance);
     }
 
 // FUNCTION OVERRIDES //
