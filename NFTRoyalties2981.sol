@@ -6,55 +6,64 @@ import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import '@openzeppelin/contracts/utils/Counters.sol';
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Royalty.sol";
-//import "@openzeppelin/contracts@4.6.0/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty {
+
+contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
 
     using Strings for uint256;
 
-    //Pre-reveal GIF URI
-    string public defaultURI = "https://ipfs.io/ipfs/INSERT-IPFS-CID/";
+// Constants
+    string public constant BASE_EXTENSION = ".json";
+    uint public constant MAX_TOTAL_SUPPLY = 111;
+    uint public constant MAX_TOKEN_MINT = 10;
+    uint public constant COST = 0.05 ether;
 
-    //Constants
-    string public BASE_EXTENSION = ".json";
-    uint public MAX_TOTAL_SUPPLY = 888;
-    uint public COST = 0.1 ether;
-
-    constructor() ERC721('NFTRoyalties2981', 'ROYAL') {
+// Initiate contract
+    constructor() ERC721('NFTRoyalties2981', 'EIP2981') {
         _tokenIds.increment(); 
-        _setDefaultRoyalty(owner(), 1000);
+        _setDefaultRoyalty(owner(), 750);
     }
 
-    function _baseURI() internal view override returns (string memory) {
-        return defaultURI;
-    }
+// Mint NFT
+    function MintNFT(uint amount) external payable nonReentrant {
+        require(msg.value == COST * amount, "Minting cost is 0.05 ETH per DSR NFT");
+        require(amount <= 10 && amount > 0, "Can only mint up to 10 NFT's");
+        require(amount <= MAX_TOKEN_MINT && amount > 0, "Must claim more than 0 but less than 11 bounties");
 
-    function setDefaultURI(string memory _defaultURI) public onlyOwner {
-        defaultURI = _defaultURI;
-    }
-
-    function MintRelic() external payable {
-        require(msg.value == COST, "Minting cost is 0.1 Ether");
-        require(totalSupply() <= MAX_TOTAL_SUPPLY, "Total supply has been reached");
+        for(uint i = 0; amount > i; i++) 
+        {
+        require(totalSupply() < MAX_TOTAL_SUPPLY, "Total supply has been reached");
 
         uint256 tokenId = _tokenIds.current();
         _tokenIds.increment();
 
         _safeMint(msg.sender, tokenId);
+        }
     }
 
-    function totalSupply() public view returns (uint256) {
-        return _tokenIds.current();
+// Total current supply of NFTs
+    function totalSupply() public view returns (uint) {
+        uint currentTokenId = _tokenIds.current();
+        return currentTokenId - 1;
     }
 
-    function tokenURI(uint256 tokenId) public view override(ERC721) returns (string memory) {
-        require(_exists(tokenId), "ERC721Metadata: URI query error. Token nonexistent");
+// Creator to claim NFTs
+    function creatorNFTClaims() public nonReentrant {
+        require(totalSupply() == 0, "Creator NFTs");
 
-        string memory currentBaseURI = _baseURI();
-        return string(abi.encodePacked(currentBaseURI, tokenId.toString(), BASE_EXTENSION));
+        for(uint i = 0; 11 > i; i++) 
+        {
+        uint256 tokenId = _tokenIds.current();
+        _tokenIds.increment();
+
+        _safeMint(msg.sender, tokenId);
+        }
     }
+
+// Withdraw from contract
     function withdraw(address payable _to, uint256 amount) public payable onlyOwner {
         require(address(this).balance > 0, "No Ether in Contract");
         require(amount > 0, "Cannot withdraw 0 amount");
@@ -63,10 +72,26 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty {
         require(sent, "Failed to send Ether");
     }
 
+// FUNCTION OVERRIDES //
+// Set baseURI before contract deployed
+    function _baseURI() internal pure override returns (string memory) {
+        return "INSERT URI"; /*"INSERT NFT URI"*/
+    }
+
+// URI of chosen NFT
+    function tokenURI(uint256 tokenId) public view override(ERC721) returns (string memory) {
+        require(_exists(tokenId), "ERC721Metadata: URI query error. Token nonexistent");
+
+        string memory currentBaseURI = _baseURI();
+        return string(abi.encodePacked(currentBaseURI, tokenId.toString(), BASE_EXTENSION));
+    }
+
+// Burn token
     function _burn(uint256 tokenId) internal override(ERC721, ERC721Royalty) {
         super._burn(tokenId);
     }
 
+// Support Interfaceselection
     function supportsInterface(bytes4 interfaceId)
         public
         view
