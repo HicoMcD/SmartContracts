@@ -25,6 +25,7 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
     uint public constant MAX_TOTAL_SUPPLY = 111;
     uint public constant MAX_TOKEN_MINT = 10;
     uint public constant COST = 0.05 ether;
+    string public constant PROVENANCE_URI = "INSERT PROVENANCE URI";
 
 // Initiate contract
     constructor() ERC721('NFTRoyalties2981', 'EIP2981') {
@@ -84,7 +85,7 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
 // FUNCTION OVERRIDES //
 // Set baseURI before contract deployed
     function _baseURI() internal pure override returns (string memory) {
-        return "INSERT URI"; /*"INSERT NFT URI"*/
+        return PROVENANCE_URI;
     }
 
 // URI of chosen NFT
