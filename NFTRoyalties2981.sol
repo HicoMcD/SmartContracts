@@ -22,10 +22,13 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
 
 // Constants
     string public constant BASE_EXTENSION = ".json";
-    uint public constant MAX_TOTAL_SUPPLY = 111;
+    uint public constant MAX_TOTAL_SUPPLY = 1111;
     uint public constant MAX_TOKEN_MINT = 10;
     uint public constant COST = 0.05 ether;
-    string public constant PROVENANCE_URI = "INSERT PROVENANCE URI";
+    string public constant PROVENANCE_URI = "INSERT URI/";
+
+// Mappings
+    mapping(address => bool) public whitelistedAddresses;
 
 // Initiate contract
     constructor() ERC721('NFTRoyalties2981', 'EIP2981') {
@@ -35,9 +38,8 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
 
 // Mint NFT
     function MintNFT(uint amount) external payable nonReentrant {
-        require(msg.value == COST * amount, "Minting cost is 0.05 ETH per DSR NFT");
-        require(amount <= 10 && amount > 0, "Can only mint up to 10 NFT's");
-        require(amount <= MAX_TOKEN_MINT && amount > 0, "Must claim more than 0 but less than 11 bounties");
+        require(msg.value == COST * amount, "Not enough to pay for minting cost");
+        require(amount <= MAX_TOKEN_MINT && amount > 0, "Must claim more than 0 but less than 11 NFTs");
 
         for(uint i = 0; amount > i; i++) 
         {
@@ -82,10 +84,35 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
         emit Deposit(msg.sender, msg.value, address(this).balance);
     }
 
+    function addUser(address _addressToWhitelist) public onlyOwner {
+      whitelistedAddresses[_addressToWhitelist] = true;
+    }
+
+    // function verifyUser(address _whitelistedAddress) public view returns(bool) {
+    //   bool userIsWhitelisted = whitelistedAddresses[_whitelistedAddress];
+    //   return userIsWhitelisted;
+    // }
+    function batchWhitelist(address[] memory _users) external onlyOwner {
+ 
+        uint size = _users.length;
+ 
+        for(uint256 i = 0; i < size; i++){
+            address user = _users[i];
+            whitelistedAddresses[user] = true;
+   }
+ }
+
+// Modifiers
+    modifier isWhitelisted(address _address) {
+      require(whitelistedAddresses[_address], "Whitelist: You need to be whitelisted");
+      _;
+    }
+
+
 // FUNCTION OVERRIDES //
 // Set baseURI before contract deployed
     function _baseURI() internal pure override returns (string memory) {
-        return PROVENANCE_URI;
+        return PROVENANCE_URI; 
     }
 
 // URI of chosen NFT
