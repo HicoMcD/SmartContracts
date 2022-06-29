@@ -6,3 +6,4 @@ Building Smart Contracts
     - OnGoing: Testing 
     - ToDo: Incorporate Rarible NFT Royalties
 2) Multi-Sig Wallet - Multi Signature Wallet
+3) TBD
