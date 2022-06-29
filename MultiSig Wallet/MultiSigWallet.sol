@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 // ToDo: OZ integration
+// - Counters
 
 contract MultiSigWallet {
 // Events
@@ -29,12 +30,12 @@ contract MultiSigWallet {
         bool executed;
         uint numConfirmations;
     }
-// Transaction struc array
+// Transaction struct storage array
     Transaction[] public transactions;
     // mapping from tx index => owner => bool
     mapping(uint => mapping(address => bool)) public isConfirmed;
 
-// (openzeppelin = only 1 owner)
+// Modifiers
     modifier onlyOwner() {
         require(isOwner[msg.sender], "Not Owner");
         _;
@@ -191,11 +192,3 @@ contract MultiSigWallet {
     }
 
 }
-
-/*
-Remix Testing
-["0x5B38Da6a701c568545dCfcB03FcB875f56beddC4", "0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2"]
-2
-
-0xdD870fA1b7C4700F2BD7f44238821C26f7392148
-*/
