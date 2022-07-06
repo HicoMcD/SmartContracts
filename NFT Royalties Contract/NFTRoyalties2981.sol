@@ -1,16 +1,14 @@
 // "SPDX-License-Identifier: MIT"
 
-pragma solidity ^0.8.7;
+pragma solidity 0.8.7;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Royalty.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-
-contract NFTRoyalties2981 is ERC721, Ownable, ERC721Enumerable, ERC721Royalty, ReentrancyGuard {
+contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
 // Libraries
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
@@ -26,14 +24,22 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Enumerable, ERC721Royalty, R
     uint public constant MAX_TOTAL_SUPPLY = 1111;
     uint public constant MAX_TOKEN_MINT = 10;
     uint public constant COST = 0.05 ether;
-    string public constant PROVENANCE_URI = "INSERT COLLECTION CID";
     uint public PUBLIC_MINT_START = block.timestamp + 7 days;
+    uint public ARTWORK_REVEAL = PUBLIC_MINT_START + 14 days;
+    
+// Variables
+    // Pre-reveal GIF
+    string public PROVENANCE_URI = "Pre-reveal GIF or Image CID";  
+
+// Booleans
+    // Pre-reveal activation
+    bool public PREREVEAL_ACTIVE = true;
 
 // Mappings
-    mapping(address => bool) public whitelistedAddresses;
+    mapping(address => bool) private whitelistedAddresses;
 
 // Initiate contract
-    constructor() ERC721('NFTRoyalties2981', 'EIP2981') {
+    constructor() ERC721('NFTRoyalties2981', '2981') {
         _tokenIds.increment(); 
         _setDefaultRoyalty(owner(), 750);
     }
@@ -44,8 +50,6 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Enumerable, ERC721Royalty, R
 
         for(uint i = 0; _total > i; i++) 
         {
-        require(totalSupply() < MAX_TOTAL_SUPPLY, "Total supply has been reached");
-
         uint256 tokenId = _tokenIds.current();
         _tokenIds.increment();
 
@@ -68,14 +72,14 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Enumerable, ERC721Royalty, R
 
 // Verify that a user is whitelisted
     function verifyUser(address _whitelistedAddress) public view returns(bool) {
-      bool userIsWhitelisted = whitelistedAddresses[_whitelistedAddress];
-      return userIsWhitelisted;
+        return whitelistedAddresses[_whitelistedAddress];
     }
 
 // Withdraw from contract
-    function withdraw(address payable _to, uint256 _amount) public payable onlyOwner {
+    function withdraw(address payable _to, uint256 _amount) public onlyOwner {
         require(address(this).balance > 0, "No Ether in Contract");
         require(_amount > 0, "Cannot withdraw 0 amount");
+        require(_amount <= address(this).balance, "Cannot withdraw more than balance of Contract");
 
         (bool sent, ) = _to.call{value: _amount}("");
         require(sent, "Failed to send Ether");
@@ -85,9 +89,20 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Enumerable, ERC721Royalty, R
     function getBalance() public view onlyOwner returns(uint) {
         return address(this).balance;
     }
+    
+// Total current supply of NFTs
+    function totalSupply() public view returns (uint) {
+    	return _tokenIds.current() - 1;
+    }
+    
+// Change Provenance URI from pre-reveal GIF/image URI to artwork URI 
+    function setProvenanceURI(string memory _provenanceURI) public onlyOwner {
+        PROVENANCE_URI = _provenanceURI;
+        PREREVEAL_ACTIVE = false;
+    }
 
 // Creator to claim NFTs
-    function creatorNFTClaims() public onlyOwner nonReentrant {
+    function creatorNFTClaims() public payable onlyOwner nonReentrant {
         require(totalSupply() == 0, "Creator NFTs have been claimed");
 
         for(uint i = 0; 11 > i; i++) 
@@ -97,6 +112,10 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Enumerable, ERC721Royalty, R
 
         _safeMint(msg.sender, tokenId);
         }
+// For Event emitting
+        uint _total = 11;
+        
+        emit Mint(msg.sender, msg.value, _total);
     }
 
 // Fallback
@@ -109,19 +128,17 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Enumerable, ERC721Royalty, R
 // Cost and Total conditional checks
     modifier mintingConditionals(uint _total) {
         require(msg.value == COST * _total, "Minting cost is 0.05 ETH per DSR NFT");
-        require(_total <= MAX_TOKEN_MINT && _total > 0, "Must claim more than 0 but less than 11 DSR NFTs");   
+        require(_total <= MAX_TOKEN_MINT && _total > 0, "Must claim more than 0 but less than 11 DSR NFTs");  
+         
+        uint currentSupply = totalSupply() + _total;
+        require(currentSupply < MAX_TOTAL_SUPPLY, "Total supply has been reached or minting more than Total Supply allowed");
         _;
     }
 
 // FUNCTION OVERRIDES //
-// Total current supply of NFTs
-    function totalSupply() public view override returns (uint) {
-        uint currentTokenId = _tokenIds.current();
-        return currentTokenId - 1;
-    }
 
 // Set baseURI on deployment
-    function _baseURI() internal pure override returns (string memory) {
+    function _baseURI() internal view override returns (string memory) {
         return PROVENANCE_URI; 
     }
 
@@ -129,16 +146,12 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Enumerable, ERC721Royalty, R
     function tokenURI(uint256 _tokenId) public view override(ERC721) returns (string memory) {
         require(_exists(_tokenId), "ERC721Metadata: URI query error. Token nonexistent");
 
+        if(ARTWORK_REVEAL > block.timestamp && PREREVEAL_ACTIVE) {
+            return PROVENANCE_URI;
+        }
+
         string memory currentBaseURI = _baseURI();
         return string(abi.encodePacked(currentBaseURI, _tokenId.toString(), BASE_EXTENSION));
-    }
-
-// Hook before transfer - Function not used
-    function _beforeTokenTransfer(address from, address to, uint256 tokenId)
-        internal
-        override(ERC721, ERC721Enumerable)
-    {
-        super._beforeTokenTransfer(from, to, tokenId);
     }
 
 // Burn token - Function not used
@@ -150,9 +163,11 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Enumerable, ERC721Royalty, R
     function supportsInterface(bytes4 _interfaceId)
         public
         view
-        override(ERC721, ERC721Enumerable, ERC721Royalty)
+        override(ERC721, ERC721Royalty)
         returns (bool)
     {
         return super.supportsInterface(_interfaceId);
     }
 }
+
+
