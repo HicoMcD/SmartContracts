@@ -24,12 +24,12 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
     uint public constant MAX_TOTAL_SUPPLY = 1111;
     uint public constant MAX_TOKEN_MINT = 10;
     uint public constant COST = 0.05 ether;
-    uint public PUBLIC_MINT_START = block.timestamp + 7 days;
-    uint public ARTWORK_REVEAL = PUBLIC_MINT_START + 14 days;
+    uint public PUBLIC_MINT_START = block.timestamp + 21 days;
+    uint public ARTWORK_REVEAL = PUBLIC_MINT_START + 7 days;
     
 // Variables
     // Pre-reveal GIF
-    string public PROVENANCE_URI = "Pre-reveal GIF or Image CID";  
+    string public PROVENANCE_URI = "PRE_REVEAL URI";  
 
 // Booleans
     // Pre-reveal activation
@@ -39,7 +39,7 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
     mapping(address => bool) private whitelistedAddresses;
 
 // Initiate contract
-    constructor() ERC721('NFTRoyalties2981', '2981') {
+    constructor() ERC721('Royalty NFT', 'ROYL') {
         _tokenIds.increment(); 
         _setDefaultRoyalty(owner(), 750);
     }
@@ -60,6 +60,7 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
 
 // Whitelist multiple addresses
     function batchWhitelist(address[] memory _users) external onlyOwner {
+        require(PUBLIC_MINT_START < block.timestamp, "Public mint has already started");
  
         uint size = _users.length;
  
@@ -95,7 +96,7 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
     	return _tokenIds.current() - 1;
     }
     
-// Change Provenance URI from pre-reveal GIF/image URI to artwork URI 
+// Change Provenance URI from preview image/GIF to actual artwork URI "INSERT ARTWORK URI"
     function setProvenanceURI(string memory _provenanceURI) public onlyOwner {
         PROVENANCE_URI = _provenanceURI;
         PREREVEAL_ACTIVE = false;
@@ -112,6 +113,7 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
 
         _safeMint(msg.sender, tokenId);
         }
+        
 // For Event emitting
         uint _total = 11;
         
@@ -146,12 +148,12 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
     function tokenURI(uint256 _tokenId) public view override(ERC721) returns (string memory) {
         require(_exists(_tokenId), "ERC721Metadata: URI query error. Token nonexistent");
 
-        if(ARTWORK_REVEAL > block.timestamp && PREREVEAL_ACTIVE) {
-            return PROVENANCE_URI;
+        if(ARTWORK_REVEAL < block.timestamp && !PREREVEAL_ACTIVE) {
+            string memory currentBaseURI = _baseURI();
+            return string(abi.encodePacked(currentBaseURI, _tokenId.toString(), BASE_EXTENSION));
         }
 
-        string memory currentBaseURI = _baseURI();
-        return string(abi.encodePacked(currentBaseURI, _tokenId.toString(), BASE_EXTENSION));
+        return PROVENANCE_URI;
     }
 
 // Burn token - Function not used
@@ -169,5 +171,7 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
         return super.supportsInterface(_interfaceId);
     }
 }
+
+
 
 
