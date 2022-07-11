@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Royalty.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
+contract RoyaltyNFT is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
 // Libraries
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
@@ -24,12 +24,14 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
     uint public constant MAX_TOTAL_SUPPLY = 1111;
     uint public constant MAX_TOKEN_MINT = 10;
     uint public constant COST = 0.05 ether;
-    uint public PUBLIC_MINT_START = block.timestamp + 21 days;
+    uint public WHITELIST_MINT = block.timestamp + 14 days;
+    uint public PUBLIC_MINT_START = WHITELIST_MINT + 14 days;
     uint public ARTWORK_REVEAL = PUBLIC_MINT_START + 7 days;
+    uint public GUARANTEE_PROVENANCE = ARTWORK_REVEAL + 1 days;
     
 // Variables
     // Pre-reveal GIF
-    string public PROVENANCE_URI = "PRE_REVEAL URI";  
+    string public PROVENANCE_URI = "INSERT PRE-REVEAL URI";  
 
 // Booleans
     // Pre-reveal activation
@@ -39,14 +41,15 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
     mapping(address => bool) private whitelistedAddresses;
 
 // Initiate contract
-    constructor() ERC721('Royalty NFT', 'ROYL') {
+    constructor() ERC721('Royalty NFT', 'ROYLT') {
         _tokenIds.increment(); 
         _setDefaultRoyalty(owner(), 750);
     }
 
 // Mint NFT
     function mint(uint _total) external payable nonReentrant mintingConditionals(_total) {
-        require(PUBLIC_MINT_START < block.timestamp || verifyUser(msg.sender), "Public mint not available yet or not whitelisted");
+        require(WHITELIST_MINT < block.timestamp && verifyUser(msg.sender), "Your address is not whitelisted or Whitelist minting is not available yet");
+        require(PUBLIC_MINT_START < block.timestamp, "Public mint not available yet");
 
         for(uint i = 0; _total > i; i++) 
         {
@@ -96,7 +99,7 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
     	return _tokenIds.current() - 1;
     }
     
-// Change Provenance URI from preview image/GIF to actual artwork URI "INSERT ARTWORK URI"
+// Change Provenance URI from preview image/GIF to actual artwork URI "INSERT ARTWORK URI" below 
     function setProvenanceURI(string memory _provenanceURI) public onlyOwner {
         PROVENANCE_URI = _provenanceURI;
         PREREVEAL_ACTIVE = false;
@@ -113,7 +116,6 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
 
         _safeMint(msg.sender, tokenId);
         }
-        
 // For Event emitting
         uint _total = 11;
         
@@ -141,6 +143,7 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
 
 // Set baseURI on deployment
     function _baseURI() internal view override returns (string memory) {
+        require(GUARANTEE_PROVENANCE > block.timestamp, "Provenance is now Guaranteed");
         return PROVENANCE_URI; 
     }
 
@@ -171,7 +174,3 @@ contract NFTRoyalties2981 is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
         return super.supportsInterface(_interfaceId);
     }
 }
-
-
-
-
