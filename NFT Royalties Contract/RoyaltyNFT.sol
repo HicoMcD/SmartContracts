@@ -24,10 +24,8 @@ contract RoyaltyNFT is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
     uint public constant MAX_TOTAL_SUPPLY = 1111;
     uint public constant MAX_TOKEN_MINT = 10;
     uint public constant COST = 0.05 ether;
-    uint public WHITELIST_MINT = block.timestamp + 14 days;
-    uint public PUBLIC_MINT_START = WHITELIST_MINT + 14 days;
-    uint public ARTWORK_REVEAL = PUBLIC_MINT_START + 7 days;
-    uint public GUARANTEE_PROVENANCE = ARTWORK_REVEAL + 1 days;
+    uint immutable WHITELIST_MINT;
+    uint immutable PUBLIC_MINT_START;
     
 // Variables
     // Pre-reveal GIF
@@ -42,14 +40,18 @@ contract RoyaltyNFT is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
 
 // Initiate contract
     constructor() ERC721('Royalty NFT', 'ROYLT') {
+        WHITELIST_MINT = block.timestamp + 14 days;
+        PUBLIC_MINT_START = block.timestamp + 28 days;
+
         _tokenIds.increment(); 
         _setDefaultRoyalty(owner(), 750);
+        creatorNFTClaims();
     }
 
 // Mint NFT
     function mint(uint _total) external payable nonReentrant mintingConditionals(_total) {
-        require(WHITELIST_MINT < block.timestamp && verifyUser(msg.sender), "Your address is not whitelisted or Whitelist minting is not available yet");
-        require(PUBLIC_MINT_START < block.timestamp, "Public mint not available yet");
+        require(WHITELIST_MINT < block.timestamp && verifyUser(msg.sender), "Not on WL or WL not active");
+        require(PUBLIC_MINT_START < block.timestamp, "Minting not active");
 
         for(uint i = 0; _total > i; i++) 
         {
@@ -63,13 +65,10 @@ contract RoyaltyNFT is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
 
 // Whitelist multiple addresses
     function batchWhitelist(address[] memory _users) external onlyOwner {
-        require(PUBLIC_MINT_START < block.timestamp, "Public mint has already started");
+        require(PUBLIC_MINT_START < block.timestamp, "Minting has started");
  
-        uint size = _users.length;
- 
-        for(uint256 i = 0; i < size; i++){
-            address user = _users[i];
-            whitelistedAddresses[user] = true;
+        for(uint256 i = 0; i < _users.length; i++){
+            whitelistedAddresses[_users[i]] = true;
         }
         emit WhitelistAddresses(_users);
     }
@@ -81,17 +80,10 @@ contract RoyaltyNFT is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
 
 // Withdraw from contract
     function withdraw(address payable _to, uint256 _amount) public onlyOwner {
-        require(address(this).balance > 0, "No Ether in Contract");
-        require(_amount > 0, "Cannot withdraw 0 amount");
-        require(_amount <= address(this).balance, "Cannot withdraw more than balance of Contract");
+        require(_amount <= address(this).balance, "Not enough ETH");
 
         (bool sent, ) = _to.call{value: _amount}("");
         require(sent, "Failed to send Ether");
-    }
-
-// Get contract balance
-    function getBalance() public view onlyOwner returns(uint) {
-        return address(this).balance;
     }
     
 // Total current supply of NFTs
@@ -101,13 +93,14 @@ contract RoyaltyNFT is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
     
 // Change Provenance URI from preview image/GIF to actual artwork URI "INSERT ARTWORK URI" below 
     function setProvenanceURI(string memory _provenanceURI) public onlyOwner {
-        PROVENANCE_URI = _provenanceURI;
+        require(PREREVEAL_ACTIVE == true, "URI set already");
         PREREVEAL_ACTIVE = false;
+        PROVENANCE_URI = _provenanceURI;
     }
 
 // Creator to claim NFTs
     function creatorNFTClaims() public payable onlyOwner nonReentrant {
-        require(totalSupply() == 0, "Creator NFTs have been claimed");
+        require(totalSupply() == 0, "NFTs have been claimed");
 
         for(uint i = 0; 11 > i; i++) 
         {
@@ -131,11 +124,11 @@ contract RoyaltyNFT is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
 
 // Cost and Total conditional checks
     modifier mintingConditionals(uint _total) {
-        require(msg.value == COST * _total, "Minting cost is 0.05 ETH per DSR NFT");
-        require(_total <= MAX_TOKEN_MINT && _total > 0, "Must claim more than 0 but less than 11 DSR NFTs");  
+        require(msg.value == COST * _total, "0.05 ETH/NFT");
+        require(_total <= MAX_TOKEN_MINT && _total > 0, "Only 1-10 NFTs allowed");  
          
         uint currentSupply = totalSupply() + _total;
-        require(currentSupply < MAX_TOTAL_SUPPLY, "Total supply has been reached or minting more than Total Supply allowed");
+        require(currentSupply < MAX_TOTAL_SUPPLY, "Not enough NFTs available");
         _;
     }
 
@@ -143,25 +136,23 @@ contract RoyaltyNFT is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
 
 // Set baseURI on deployment
     function _baseURI() internal view override returns (string memory) {
-        require(GUARANTEE_PROVENANCE > block.timestamp, "Provenance is now Guaranteed");
         return PROVENANCE_URI; 
     }
 
 // URI of chosen NFT
     function tokenURI(uint256 _tokenId) public view override(ERC721) returns (string memory) {
-        require(_exists(_tokenId), "ERC721Metadata: URI query error. Token nonexistent");
+        require(_exists(_tokenId), "NFT nonexistent");
 
-        if(ARTWORK_REVEAL < block.timestamp && !PREREVEAL_ACTIVE) {
-            string memory currentBaseURI = _baseURI();
-            return string(abi.encodePacked(currentBaseURI, _tokenId.toString(), BASE_EXTENSION));
+        if(PREREVEAL_ACTIVE) {
+            return PROVENANCE_URI;
         }
 
-        return PROVENANCE_URI;
+        string memory currentBaseURI = _baseURI();
+        return string(abi.encodePacked(currentBaseURI, _tokenId.toString(), BASE_EXTENSION));
     }
 
 // Burn token - Function not used
     function _burn(uint256 _tokenId) internal override(ERC721, ERC721Royalty) {
-        super._burn(_tokenId);
     }
 
 // Support Interface selection
@@ -174,3 +165,4 @@ contract RoyaltyNFT is ERC721, Ownable, ERC721Royalty, ReentrancyGuard {
         return super.supportsInterface(_interfaceId);
     }
 }
+
